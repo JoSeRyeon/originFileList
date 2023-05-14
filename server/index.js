@@ -58,6 +58,20 @@ app.post('/api', (req, res)=>{
 });
 
 
+app.post('/resetFileList', (req, res)=>{
+  
+  fs.readdir(directoryPath, (err, files) => {
+    if (err) {
+      return console.log('Unable to scan directory: ' + err);
+    } 
+  
+    fileList = files;
+  });
+  
+  res.send({});
+});
+
+
 app.post('/fileList', async (req, res) => {
 
   // const files = fs.readdirSync(path.join(__dirname, 'uploads'));
@@ -101,31 +115,34 @@ app.post('/searchHeader', async (req, res) => {
   let headerCellList = [];
   const searchKeyword = ["학교가", "행사가", "단위", "제품명", "품명", "규격", "유통기한"]
 
-  files.forEach(file => {
+  for (const file of files) {
     const workbook = xlsx.readFile(file);
     const sheetNames = workbook.SheetNames;
-
-    sheetNames.forEach(async (sheetName) => {
+  
+    for (const sheetName of sheetNames) {
       const worksheet = workbook.Sheets[sheetName];
-      const range = xlsx.utils.decode_range(worksheet['!ref']);
-      
-
-
+      let range = null;
+  
+      try {
+        range = xlsx.utils.decode_range(worksheet['!ref']);
+      } catch (e) {
+        console.log(`${path.basename(file)} - ${sheetName} `);
+        continue;
+      }
+  
       let headerCell = [];
       let sheetInfo = {};
-
-
+  
       for (let R = range.s.r; R <= range.e.r; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
           const cellAddress = { c: C, r: R + 1 };
           const cellRef = xlsx.utils.encode_cell(cellAddress);
           const cell = worksheet[cellRef];
-
+  
           if (cell && searchKeyword.includes(cell.v.toString().replace(/\s/g, ''))) {
-
-            const rowNumber = R; // 가져올 행 번호
+            const rowNumber = R;
             const row = [];
-
+  
             for (let C = range.s.c; C <= range.e.c; ++C) {
               const cellRef1 = xlsx.utils.encode_cell({ c: C, r: rowNumber + 1 });
               const cell1 = worksheet[cellRef1];
@@ -134,17 +151,59 @@ app.post('/searchHeader', async (req, res) => {
               }
             }
             headerCell = row;
-            sheetInfo = { fileName: path.basename(file), sheetName: sheetName }
-
+            sheetInfo = { fileName: path.basename(file), sheetName: sheetName };
           }
         }
       }
-
-
+  
       headerCellList.push({ headerCell: headerCell, sheetInfo: sheetInfo });
+    }
+  }
 
-    })
-  })
+  // files.forEach(file => {
+  //   const workbook = xlsx.readFile(file);
+  //   const sheetNames = workbook.SheetNames;
+
+  //   sheetNames.forEach(async (sheetName) => {
+  //     const worksheet = workbook.Sheets[sheetName];
+  //     const range = xlsx.utils.decode_range(worksheet['!ref']);
+      
+
+
+  //     let headerCell = [];
+  //     let sheetInfo = {};
+
+
+  //     for (let R = range.s.r; R <= range.e.r; ++R) {
+  //       for (let C = range.s.c; C <= range.e.c; ++C) {
+  //         const cellAddress = { c: C, r: R + 1 };
+  //         const cellRef = xlsx.utils.encode_cell(cellAddress);
+  //         const cell = worksheet[cellRef];
+
+  //         if (cell && searchKeyword.includes(cell.v.toString().replace(/\s/g, ''))) {
+
+  //           const rowNumber = R; // 가져올 행 번호
+  //           const row = [];
+
+  //           for (let C = range.s.c; C <= range.e.c; ++C) {
+  //             const cellRef1 = xlsx.utils.encode_cell({ c: C, r: rowNumber + 1 });
+  //             const cell1 = worksheet[cellRef1];
+  //             if (cell1) {
+  //               row.push(cell1.v);
+  //             }
+  //           }
+  //           headerCell = row;
+  //           sheetInfo = { fileName: path.basename(file), sheetName: sheetName }
+
+  //         }
+  //       }
+  //     }
+
+
+  //     headerCellList.push({ headerCell: headerCell, sheetInfo: sheetInfo });
+
+  //   })
+  // })
 
 
   return res.send(headerCellList);
