@@ -4,6 +4,7 @@ const bodyParser = require('body-parser')
 const app = express(); 
 const port = 5000; // 포트 넘버 설정 
 const cors = require('cors');
+const { exec , spawn } = require('child_process');
 
 const xlsx = require('xlsx');
 
@@ -57,6 +58,150 @@ app.post('/api', (req, res)=>{
   res.send({ test: "hi"});
 });
 
+app.post('/runBatchFile2', (req, res)=>{
+
+const fileInfo = req.body.fileInfo;
+
+console.log(fileInfo.index)
+
+
+  exec(path.join(__dirname, 'file' + fileInfo.index + ".bat"), (err, stdout, stderr) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log(stdout);
+  });
+    
+    res.send({});
+  });
+
+// app.post('/runBatchFile', (req, res)=>{
+
+
+  
+//   const filePath = path.join(__dirname, 'file_list.txt')
+
+// // 파일 내용을 문자열로 읽어오기
+// const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+// // 줄 단위로 문자열 분리하여 배열로 만들기
+// const fileLines = fileContent.trim().split('\n');
+// console.log(fileLines)
+    
+//     res.send({});
+//   });
+
+
+app.post('/runBatchFile', (req, res)=>{
+
+  const fileInfo = req.body.sheetName;
+
+
+  let batList = '';
+
+  fileList.map((data) => {
+    if(batList === ''){
+      batList += `@echo off
+    chcp 65001
+    Start C:\\Sejin\\server\\uploads\\"${data}"
+    `
+    }else {
+      batList += `
+     
+    @echo off
+    chcp 65001
+    Start C:\\Sejin\\server\\uploads\\"${data}"
+    `
+    }
+    
+  })
+
+let content = `@echo off
+chcp 65001
+
+set name="${fileInfo}"
+Start C:\\Sejin\\server\\uploads\\%name%
+cmd/k 
+`;
+
+
+fs.writeFileSync(path.join(__dirname, 'openfile_last.bat'), content,{ encoding: 'utf8' } , (err) => {
+  
+  if (err) throw err;
+  console.log('example.bat file is created!');
+
+  // exec(path.join(__dirname, 'openfile_last.bat'), (err, stdout, stderr) => {
+  //   if (err) {
+  //     console.error(err);
+  //     return;
+  //   }
+  //   console.log(stdout);
+  // });
+});
+    
+   exec(path.join(__dirname, 'openfile_last.bat'), (err, stdout, stderr) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log(stdout);
+  });
+    res.send({});
+  });
+
+
+// app.post('/runBatchFile', (req, res)=>{
+
+// const content = `@echo off 
+// cmd/k 
+// `;
+
+// // fs.writeFileSync(path.join(__dirname, 'openfile2.bat'), content, { encoding: 'utf8' }, (err) => {
+// //   if (err) throw err;
+// //   console.log('example.bat file is created!');
+
+// //   // exec(path.join(__dirname, 'openfile2.bat'), (err, stdout, stderr) => {
+// //   //   if (err) {
+// //   //     console.error(err);
+// //   //     return;
+// //   //   }
+// //   //   console.log(stdout);
+// //   // });
+
+// // });
+
+
+  
+//   // exec(path.join(__dirname, 'openfile.bat'), (err, stdout, stderr) => {
+//   //   if (err) {
+//   //     console.error(err);
+//   //     return;
+//   //   }
+//   //   console.log(stdout);
+//   // });
+  
+//   res.send({});
+// });
+
+// app.post('/runBatchFile', (req, res) => {
+//   const input = '6월 CJ.xlsx';
+//   const bat = spawn('cmd.exe', [path.join(__dirname, 'openfile.bat'), input]);
+
+//   bat.stdout.on('data', (data) => {
+//     console.log(data.toString() + "ee");
+//   });
+
+//   bat.stderr.on('data', (data) => {
+//     console.error(data.toString() + "error");
+//   });
+
+//   bat.on('exit', (code) => {
+//     console.log(`Child process exited with code ${code}`);
+//     res.send({});
+//   });
+// });
+
 
 app.post('/resetFileList', (req, res)=>{
   
@@ -99,6 +244,44 @@ app.post('/fileList', async (req, res) => {
 })
 
 
+app.post('/viewExcel', (req, res) => {
+  const fileName = '6월 CJ.xlsx'; // 로컬에 저장된 엑셀 파일명
+  const filePath = path.join(__dirname, 'uploads', fileName); // 엑셀 파일 경로
+
+  try {
+    const workbook = xlsx.readFile(filePath); // 엑셀 파일 읽기
+    const sheetName = workbook.SheetNames[0]; // 첫 번째 시트 이름 가져오기
+    const worksheet = workbook.Sheets[sheetName]; // 첫 번째 시트 가져오기
+
+    // 엑셀 데이터를 2차원 배열로 변환하기
+    const rows = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+    const data = rows.map(row => row.map(cell => ({ value: cell })));
+
+    // SheetRenderer 컴포넌트를 사용하여 엑셀 데이터 보여주기
+    // res.send(`
+    //   <html>
+    //     <head>
+    //       <link rel="stylesheet" href="https://unpkg.com/react-spreadsheet/dist/index.css" />
+    //     </head>
+    //     <body>
+    //       <div style="height: 100vh">
+    //         <SheetRenderer data={${JSON.stringify(data)}} />
+    //       </div>
+    //       <script src="https://unpkg.com/react/umd/react.production.min.js"></script>
+    //       <script src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
+    //       <script src="https://unpkg.com/react-spreadsheet/dist/index.umd.min.js"></script>
+    //     </body>
+    //   </html>
+    // `);
+
+    res.send(data)
+  } catch (error) {
+    res.send('Error: ' + error.message);
+  }
+});
+
+
+
 app.post('/searchHeader', async (req, res) => {
 
 
@@ -110,7 +293,7 @@ app.post('/searchHeader', async (req, res) => {
 
 
   const files = fileTest;
-
+  let errorSheetList = [];
 
   let headerCellList = [];
   const searchKeyword = ["학교가", "행사가", "단위", "제품명", "품명", "규격", "유통기한"]
@@ -126,7 +309,8 @@ app.post('/searchHeader', async (req, res) => {
       try {
         range = xlsx.utils.decode_range(worksheet['!ref']);
       } catch (e) {
-        console.log(`${path.basename(file)} - ${sheetName} `);
+        // console.log(`${path.basename(file)} - ${sheetName} `);
+        errorSheetList.push(`${path.basename(file)} - ${sheetName} `)
         continue;
       }
   
